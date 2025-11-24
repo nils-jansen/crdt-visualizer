@@ -1,73 +1,99 @@
-# React + TypeScript + Vite
+# CRDT Visualizer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An interactive web application for visualizing Conflict-free Replicated Data Types (CRDTs). Built with React, TypeScript, and Tailwind CSS.
 
-Currently, two official plugins are available:
+## What are CRDTs?
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+CRDTs are data structures that can be replicated across multiple nodes, updated independently and concurrently without coordination, and merged to produce a consistent state. This project implements **CvRDTs** (Convergent/State-based CRDTs), which achieve consistency through merge functions that combine full state.
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Split-view visualization** of 2-3 independent replicas (A, B, C)
+- **Local operations** on each replica (Add, Remove, Increment, Decrement)
+- **Sync/Merge button** that demonstrates convergence across all replicas
+- **Step-by-step sync modal** showing exactly how the merge algorithm works
+- **Dual view** for each replica: User View (computed value) and Internal State (raw data structures)
+- **Animated transitions** highlighting changes during synchronization
 
-## Expanding the ESLint configuration
+## Implemented CRDTs
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 1. PN-Counter (Positive-Negative Counter)
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+A counter that supports both increment and decrement operations.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- **Internal State:** Two vectors `P` (increments) and `N` (decrements), one entry per replica
+- **Value:** `Sum(P) - Sum(N)`
+- **Merge:** Element-wise maximum of both vectors
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 2. 2P-Set (Two-Phase Set)
+
+A set that supports add and remove, with remove-wins semantics.
+
+- **Internal State:** Two sets - `Added` and `Removed` (tombstones)
+- **Visible Elements:** Elements in `Added` but not in `Removed`
+- **Merge:** Union of `Added` sets, union of `Removed` sets
+- **Limitation:** Once removed, an element cannot be re-added
+
+### 3. Directed Graph (Add-Wins / OR-Set Variant)
+
+A graph structure using UUID tagging for add-wins conflict resolution.
+
+- **Internal State:** Vertices and arcs stored with unique UUIDs, plus tombstone sets
+- **Merge:** Union of all UUIDs and tombstone sets
+- **Add-Wins:** Concurrent additions create new UUIDs not in the removal set, so they survive
+
+#### Try the Add-Wins Scenario:
+1. Add vertex "X" on Replica A
+2. Sync all replicas
+3. Remove "X" on Replica A
+4. Add "X" on Replica B (without syncing)
+5. Sync - observe "X" remains visible!
+
+## Tech Stack
+
+- **React 19** with TypeScript
+- **Vite** for development and building
+- **Tailwind CSS v4** for styling
+- **Framer Motion** for animations
+- **UUID** for unique identifier generation
+
+## Getting Started
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open [http://localhost:5173](http://localhost:5173) to view the application.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Project Structure
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+src/
+├── types/
+│   └── crdt.ts              # TypeScript interfaces for all CRDTs
+├── lib/
+│   ├── pn-counter.ts        # PN-Counter logic + merge steps
+│   ├── two-p-set.ts         # 2P-Set logic + merge steps
+│   └── directed-graph.ts    # Directed Graph logic + merge steps
+├── components/
+│   ├── layout/              # AppShell, ModuleTabs
+│   ├── shared/              # ReplicaCard, SyncButton, SyncModal
+│   │   └── steps/           # Step visualizers for sync modal
+│   ├── pn-counter/          # PN-Counter module UI
+│   ├── two-p-set/           # 2P-Set module UI
+│   └── directed-graph/      # Graph module UI with SVG canvas
+└── App.tsx                  # Main app with module routing
+```
+
+## References
+
+- [A comprehensive study of CRDTs](https://hal.inria.fr/inria-00555588/document) - Shapiro et al.
+- [CRDTs: Consistency without concurrency control](https://arxiv.org/abs/0907.0929)
+- [Wikipedia: CRDT](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type)
