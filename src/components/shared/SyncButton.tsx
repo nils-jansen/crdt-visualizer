@@ -13,9 +13,9 @@ export function SyncButton({ onSync, onReset, isSyncing, syncLabel }: SyncButton
       <motion.button
         onClick={onSync}
         disabled={isSyncing}
-        className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white font-bold rounded-lg shadow-lg hover:shadow-xl disabled:opacity-50 transition-all"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg disabled:opacity-50 transition-colors"
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
       >
         <span className="flex items-center gap-2">
           <SyncIcon isSyncing={isSyncing} />
