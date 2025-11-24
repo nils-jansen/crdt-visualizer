@@ -119,34 +119,21 @@ export function DirectedGraphModule() {
 
   return (
     <div>
-      <div className="mb-6 p-4 bg-slate-800 rounded-lg border-l-4 border-purple-500">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-white mb-1">Directed Graph (Op-Based / CmRDT)</h2>
-            <span className="inline-block px-2 py-0.5 bg-purple-900/50 text-purple-300 text-xs rounded-full mb-2">
-              CmRDT - Operation Log with Causal Delivery
-            </span>
-          </div>
+      <div className="mb-6 p-4 bg-slate-800 rounded-lg">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-semibold text-white">Directed Graph (Op-Based)</h2>
           {totalPendingOps > 0 && (
             <span className="px-3 py-1 bg-amber-900/50 text-amber-400 text-sm rounded-full animate-pulse">
               {totalPendingOps} op{totalPendingOps !== 1 ? 's' : ''} pending
             </span>
           )}
         </div>
-        <p className="text-slate-400 text-sm">
-          Unlike state-based CRDTs, this <span className="text-purple-400">CmRDT</span> uses an operation-log approach.
-          Each operation has a <span className="text-purple-400">prepare</span> phase (generating unique tags) and an
-          <span className="text-purple-400"> effect</span> phase (applying to state).
-          Operations are queued locally and <span className="text-purple-400">delivered</span> to other replicas on sync.
-        </p>
-        <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-500">
-          <div>
-            <span className="text-green-400">AddVertex:</span> prepare generates unique tag, effect adds (name, tag) to V
-          </div>
-          <div>
-            <span className="text-red-400">RemoveVertex:</span> prepare collects observed tags, effect adds to R
-          </div>
-        </div>
+        <ul className="text-slate-400 text-sm space-y-1 list-disc list-inside">
+          <li>Operations have <span className="text-purple-400">prepare</span> (generate unique tag) and <span className="text-purple-400">effect</span> (apply to state) phases</li>
+          <li><span className="text-green-400">AddVertex</span>: adds (name, tag) to V</li>
+          <li><span className="text-red-400">RemoveVertex</span>: moves observed tags to R</li>
+          <li>Queued ops delivered to other replicas on sync (add-wins semantics)</li>
+        </ul>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

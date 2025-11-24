@@ -62,21 +62,14 @@ export function TwoPSetModule() {
 
   return (
     <div>
-      <div className="mb-6 p-4 bg-slate-800 rounded-lg border-l-4 border-green-500">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-white mb-1">2P-Set (Two-Phase Set)</h2>
-            <span className="inline-block px-2 py-0.5 bg-green-900/50 text-green-300 text-xs rounded-full mb-2">
-              CvRDT - State-based Set with Tombstones
-            </span>
-          </div>
-        </div>
-        <p className="text-slate-400 text-sm">
-          Maintains two sets: <span className="text-green-400">Added</span> and{' '}
-          <span className="text-red-400">Removed</span> (tombstones). Visible elements are those in Added but not in Removed.
-          The <span className="text-green-400">merge function</span> computes union of both sets, ensuring
-          remove-wins semantics. Once tombstoned, an element cannot be re-added (limitation addressed by OR-Sets).
-        </p>
+      <div className="mb-6 p-4 bg-slate-800 rounded-lg">
+        <h2 className="text-lg font-semibold text-white mb-2">2P-Set (Two-Phase Set)</h2>
+        <ul className="text-slate-400 text-sm space-y-1 list-disc list-inside">
+          <li>Two sets: <span className="text-green-400">Added</span> and <span className="text-red-400">Removed</span> (tombstones)</li>
+          <li>Visible = elements in Added but not in Removed</li>
+          <li>Merge: union of both sets (remove-wins semantics)</li>
+          <li>Limitation: once removed, cannot re-add</li>
+        </ul>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

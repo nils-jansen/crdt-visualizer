@@ -64,22 +64,13 @@ export function PNCounterModule() {
 
   return (
     <div>
-      <div className="mb-6 p-4 bg-slate-800 rounded-lg border-l-4 border-blue-500">
-        <div className="flex items-start justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-white mb-1">PN-Counter (Positive-Negative Counter)</h2>
-            <span className="inline-block px-2 py-0.5 bg-blue-900/50 text-blue-300 text-xs rounded-full mb-2">
-              CvRDT - State-based Counter
-            </span>
-          </div>
-        </div>
-        <p className="text-slate-400 text-sm">
-          Each replica maintains two vectors: <span className="text-green-400">P</span> (increments) and{' '}
-          <span className="text-red-400">N</span> (decrements). The value is calculated as{' '}
-          <code className="bg-slate-700 px-1 rounded">Sum(P) - Sum(N)</code>.
-          The <span className="text-blue-400">merge function</span> uses element-wise maximum, guaranteeing convergence
-          regardless of message ordering.
-        </p>
+      <div className="mb-6 p-4 bg-slate-800 rounded-lg">
+        <h2 className="text-lg font-semibold text-white mb-2">PN-Counter (Positive-Negative Counter)</h2>
+        <ul className="text-slate-400 text-sm space-y-1 list-disc list-inside">
+          <li>Two vectors: <span className="text-green-400">P</span> (increments) and <span className="text-red-400">N</span> (decrements)</li>
+          <li>Value = <code className="bg-slate-700 px-1 rounded">Sum(P) - Sum(N)</code></li>
+          <li>Merge: element-wise maximum of both vectors</li>
+        </ul>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
