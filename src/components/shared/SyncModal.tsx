@@ -80,6 +80,9 @@ export function SyncModal({
   const step = steps[currentStep];
   const isLastStep = currentStep === steps.length - 1;
 
+  // Safety check: if step is undefined, return null
+  if (!step) return null;
+
   return (
     <AnimatePresence>
       <motion.div
