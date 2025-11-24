@@ -110,12 +110,20 @@ export function DirectedGraphModule() {
 
   return (
     <div>
-      <div className="mb-6 p-4 bg-slate-800 rounded-lg">
-        <h2 className="text-lg font-semibold text-white mb-2">Directed Graph (Add-Wins Semantics)</h2>
+      <div className="mb-6 p-4 bg-slate-800 rounded-lg border-l-4 border-purple-500">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-white mb-1">Directed Graph (Add-Wins Semantics)</h2>
+            <span className="inline-block px-2 py-0.5 bg-purple-900/50 text-purple-300 text-xs rounded-full mb-2">
+              CvRDT - OR-Set Variant with UUID Tagging
+            </span>
+          </div>
+        </div>
         <p className="text-slate-400 text-sm">
-          Vertices and arcs are stored with unique UUIDs. When removing, only the <em>observed</em> UUIDs are tombstoned.
-          If Replica A removes "X" while Replica B concurrently adds "X", the merge results in "X" being visible
-          (because B's addition created a new UUID not in A's removal set).
+          Vertices and arcs are stored with unique UUIDs, similar to an <span className="text-purple-400">OR-Set</span> (Observed-Remove Set).
+          When removing, only the <em>observed</em> UUIDs are tombstoned.
+          The <span className="text-purple-400">merge function</span> unions all UUIDs and tombstones, enabling
+          add-wins: concurrent additions create new UUIDs that survive concurrent removals.
         </p>
       </div>
 
