@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import type { DirectedGraph, Vertex, Arc, DirectedGraphSerialized } from '../types/crdt';
+import type { DirectedGraph, Vertex, Arc, DirectedGraphSerialized, DirectedGraphSyncStep } from '../types/crdt';
 
 /**
  * Create a new empty Directed Graph
@@ -240,4 +240,171 @@ export function hasVertex(graph: DirectedGraph, name: string): boolean {
  */
 export function hasArc(graph: DirectedGraph, from: string, to: string): boolean {
   return getVisibleArcs(graph).some(a => a.from === from && a.to === to);
+}
+
+/**
+ * Generate step-by-step merge visualization data
+ */
+export function generateMergeSteps(
+  source: DirectedGraph,
+  target: DirectedGraph
+): DirectedGraphSyncStep[] {
+  const totalSteps = 5;
+
+  // Helper to convert to items with labels
+  const vertexToItem = (v: Vertex) => ({ id: v.uuid, label: `${v.name} [${v.uuid.slice(0, 6)}]` });
+  const arcToItem = (a: Arc) => ({ id: a.uuid, label: `${a.from}→${a.to} [${a.uuid.slice(0, 6)}]` });
+
+  // Step 1: Union of vertices
+  const sourceVertices = Array.from(source.vertices.values());
+  const targetVertices = Array.from(target.vertices.values());
+  const sourceVertexUuids = new Set(sourceVertices.map(v => v.uuid));
+  const targetVertexUuids = new Set(targetVertices.map(v => v.uuid));
+  const onlyInSourceVertices = sourceVertices.filter(v => !targetVertexUuids.has(v.uuid)).map(v => v.uuid);
+  const onlyInTargetVertices = targetVertices.filter(v => !sourceVertexUuids.has(v.uuid)).map(v => v.uuid);
+  const allVertices = [...sourceVertices];
+  for (const v of targetVertices) {
+    if (!sourceVertexUuids.has(v.uuid)) {
+      allVertices.push(v);
+    }
+  }
+
+  // Step 2: Union of vertex tombstones
+  const sourceRemovedVertices = Array.from(source.removedVertices);
+  const targetRemovedVertices = Array.from(target.removedVertices);
+  const onlyInSourceRemoved = sourceRemovedVertices.filter(id => !target.removedVertices.has(id));
+  const onlyInTargetRemoved = targetRemovedVertices.filter(id => !source.removedVertices.has(id));
+  const allRemovedVertices = [...new Set([...sourceRemovedVertices, ...targetRemovedVertices])];
+
+  // Step 3: Union of arcs
+  const sourceArcs = Array.from(source.arcs.values());
+  const targetArcs = Array.from(target.arcs.values());
+  const sourceArcUuids = new Set(sourceArcs.map(a => a.uuid));
+  const targetArcUuids = new Set(targetArcs.map(a => a.uuid));
+  const onlyInSourceArcs = sourceArcs.filter(a => !targetArcUuids.has(a.uuid)).map(a => a.uuid);
+  const onlyInTargetArcs = targetArcs.filter(a => !sourceArcUuids.has(a.uuid)).map(a => a.uuid);
+  const allArcs = [...sourceArcs];
+  for (const a of targetArcs) {
+    if (!sourceArcUuids.has(a.uuid)) {
+      allArcs.push(a);
+    }
+  }
+
+  // Step 4: Union of arc tombstones
+  const sourceRemovedArcs = Array.from(source.removedArcs);
+  const targetRemovedArcs = Array.from(target.removedArcs);
+  const onlyInSourceRemovedArcs = sourceRemovedArcs.filter(id => !target.removedArcs.has(id));
+  const onlyInTargetRemovedArcs = targetRemovedArcs.filter(id => !source.removedArcs.has(id));
+  const allRemovedArcs = [...new Set([...sourceRemovedArcs, ...targetRemovedArcs])];
+
+  // Step 5: Compute visible graph and find add-wins cases
+  const sourceVisible = getVisibleVertices(source).map(v => v.name);
+  const targetVisible = getVisibleVertices(target).map(v => v.name);
+
+  // Build merged graph to get result
+  const merged = merge(source, target);
+  const resultVisible = getVisibleVertices(merged).map(v => v.name);
+
+  // Find add-wins examples: vertices visible in result that were removed on one side
+  const addWinsExamples: { name: string; reason: string }[] = [];
+  const removedSet = new Set(allRemovedVertices);
+
+  for (const vertex of allVertices) {
+    if (removedSet.has(vertex.uuid)) continue; // This UUID was removed
+
+    // Check if this vertex name was "removed" by one replica but survives due to new UUID
+    const nameRemovedOnSource = !sourceVisible.includes(vertex.name) && source.vertices.size > 0;
+    const nameRemovedOnTarget = !targetVisible.includes(vertex.name) && target.vertices.size > 0;
+    const survivesInResult = resultVisible.includes(vertex.name);
+
+    if ((nameRemovedOnSource || nameRemovedOnTarget) && survivesInResult) {
+      // Check if this is actually an add-wins case
+      const verticesWithName = allVertices.filter(v => v.name === vertex.name);
+      const hasRemovedUuid = verticesWithName.some(v => removedSet.has(v.uuid));
+      const hasLiveUuid = verticesWithName.some(v => !removedSet.has(v.uuid));
+
+      if (hasRemovedUuid && hasLiveUuid) {
+        const reason = nameRemovedOnSource
+          ? 'Removed on source, but target added with new UUID'
+          : 'Removed on target, but source added with new UUID';
+        if (!addWinsExamples.some(e => e.name === vertex.name)) {
+          addWinsExamples.push({ name: vertex.name, reason });
+        }
+      }
+    }
+  }
+
+  return [
+    {
+      id: 'graph-step-1',
+      stepNumber: 1,
+      totalSteps,
+      title: 'Union of All Vertices',
+      description: 'Combine all vertex UUIDs from both replicas. Each vertex addition creates a unique UUID, enabling add-wins semantics.',
+      type: 'directed-graph',
+      operation: 'union-vertices',
+      sourceItems: sourceVertices.map(vertexToItem),
+      targetItems: targetVertices.map(vertexToItem),
+      resultItems: allVertices.map(vertexToItem),
+      onlyInSource: onlyInSourceVertices,
+      onlyInTarget: onlyInTargetVertices,
+    },
+    {
+      id: 'graph-step-2',
+      stepNumber: 2,
+      totalSteps,
+      title: 'Union of Vertex Tombstones',
+      description: 'Combine all removed vertex UUIDs. A removal only affects the specific UUID that was observed at removal time.',
+      type: 'directed-graph',
+      operation: 'union-vertex-tombstones',
+      sourceItems: sourceRemovedVertices.map(id => ({ id, label: id.slice(0, 8) })),
+      targetItems: targetRemovedVertices.map(id => ({ id, label: id.slice(0, 8) })),
+      resultItems: allRemovedVertices.map(id => ({ id, label: id.slice(0, 8) })),
+      onlyInSource: onlyInSourceRemoved,
+      onlyInTarget: onlyInTargetRemoved,
+    },
+    {
+      id: 'graph-step-3',
+      stepNumber: 3,
+      totalSteps,
+      title: 'Union of All Arcs',
+      description: 'Combine all arc UUIDs from both replicas.',
+      type: 'directed-graph',
+      operation: 'union-arcs',
+      sourceItems: sourceArcs.map(arcToItem),
+      targetItems: targetArcs.map(arcToItem),
+      resultItems: allArcs.map(arcToItem),
+      onlyInSource: onlyInSourceArcs,
+      onlyInTarget: onlyInTargetArcs,
+    },
+    {
+      id: 'graph-step-4',
+      stepNumber: 4,
+      totalSteps,
+      title: 'Union of Arc Tombstones',
+      description: 'Combine all removed arc UUIDs from both replicas.',
+      type: 'directed-graph',
+      operation: 'union-arc-tombstones',
+      sourceItems: sourceRemovedArcs.map(id => ({ id, label: id.slice(0, 8) })),
+      targetItems: targetRemovedArcs.map(id => ({ id, label: id.slice(0, 8) })),
+      resultItems: allRemovedArcs.map(id => ({ id, label: id.slice(0, 8) })),
+      onlyInSource: onlyInSourceRemovedArcs,
+      onlyInTarget: onlyInTargetRemovedArcs,
+    },
+    {
+      id: 'graph-step-5',
+      stepNumber: 5,
+      totalSteps,
+      title: 'Resolve Visible Graph',
+      description: addWinsExamples.length > 0
+        ? `Vertices are visible if any UUID is not tombstoned. Add-wins detected: ${addWinsExamples.map(e => e.name).join(', ')}`
+        : 'Vertices are visible if any of their UUIDs is not in the tombstone set.',
+      type: 'directed-graph',
+      operation: 'result',
+      sourceVisibleVertices: sourceVisible,
+      targetVisibleVertices: targetVisible,
+      resultVisibleVertices: resultVisible,
+      addWinsExamples,
+    },
+  ];
 }

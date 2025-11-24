@@ -1,4 +1,4 @@
-import type { TwoPSet, TwoPSetSerialized } from '../types/crdt';
+import type { TwoPSet, TwoPSetSerialized, TwoPSetSyncStep } from '../types/crdt';
 
 /**
  * Create a new empty 2P-Set
@@ -128,4 +128,92 @@ export function equals<T>(setA: TwoPSet<T>, setB: TwoPSet<T>): boolean {
   }
 
   return true;
+}
+
+/**
+ * Generate step-by-step merge visualization data
+ */
+export function generateMergeSteps(
+  source: TwoPSet<string>,
+  target: TwoPSet<string>
+): TwoPSetSyncStep[] {
+  const totalSteps = 3;
+
+  // Compute set differences for Added
+  const sourceAdded = Array.from(source.added);
+  const targetAdded = Array.from(target.added);
+  const onlyInSourceAdded = sourceAdded.filter(e => !target.added.has(e));
+  const onlyInTargetAdded = targetAdded.filter(e => !source.added.has(e));
+  const inBothAdded = sourceAdded.filter(e => target.added.has(e));
+  const resultAdded = [...new Set([...sourceAdded, ...targetAdded])];
+
+  // Compute set differences for Removed
+  const sourceRemoved = Array.from(source.removed);
+  const targetRemoved = Array.from(target.removed);
+  const onlyInSourceRemoved = sourceRemoved.filter(e => !target.removed.has(e));
+  const onlyInTargetRemoved = targetRemoved.filter(e => !source.removed.has(e));
+  const inBothRemoved = sourceRemoved.filter(e => target.removed.has(e));
+  const resultRemoved = [...new Set([...sourceRemoved, ...targetRemoved])];
+
+  // Compute visible sets
+  const sourceVisible = lookupArray(source);
+  const targetVisible = lookupArray(target);
+  const resultVisible = resultAdded.filter(e => !resultRemoved.includes(e));
+
+  // Find changes
+  const newlyVisible = resultVisible.filter(
+    e => !sourceVisible.includes(e) || !targetVisible.includes(e)
+  );
+  const newlyHidden = [...sourceVisible, ...targetVisible].filter(
+    e => !resultVisible.includes(e)
+  );
+
+  return [
+    {
+      id: '2p-step-1',
+      stepNumber: 1,
+      totalSteps,
+      title: 'Union of Added Sets',
+      description: 'Combine all elements that have ever been added on either replica. Elements unique to each replica are highlighted.',
+      type: 'two-p-set',
+      operation: 'union-added',
+      sourceSet: sourceAdded,
+      targetSet: targetAdded,
+      resultSet: resultAdded,
+      onlyInSource: onlyInSourceAdded,
+      onlyInTarget: onlyInTargetAdded,
+      inBoth: inBothAdded,
+    },
+    {
+      id: '2p-step-2',
+      stepNumber: 2,
+      totalSteps,
+      title: 'Union of Removed Sets (Tombstones)',
+      description: 'Combine all tombstones from both replicas. Once an element is removed on any replica, it stays removed forever.',
+      type: 'two-p-set',
+      operation: 'union-removed',
+      sourceSet: sourceRemoved,
+      targetSet: targetRemoved,
+      resultSet: resultRemoved,
+      onlyInSource: onlyInSourceRemoved,
+      onlyInTarget: onlyInTargetRemoved,
+      inBoth: inBothRemoved,
+    },
+    {
+      id: '2p-step-3',
+      stepNumber: 3,
+      totalSteps,
+      title: 'Compute Visible Set',
+      description: 'The visible set is Added \\ Removed (elements in Added but not in Removed). Both replicas now show the same elements.',
+      type: 'two-p-set',
+      operation: 'result',
+      mergedAdded: resultAdded,
+      mergedRemoved: resultRemoved,
+      sourceVisible,
+      targetVisible,
+      resultVisible,
+      newlyVisible,
+      newlyHidden: [...new Set(newlyHidden)],
+    },
+  ];
 }

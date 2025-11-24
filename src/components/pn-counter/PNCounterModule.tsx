@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { PNCounter } from '../../types/crdt';
+import type { PNCounter, PNCounterSyncStep } from '../../types/crdt';
 import * as PNCounterOps from '../../lib/pn-counter';
 import { ReplicaCard } from '../shared/ReplicaCard';
 import { SyncButton } from '../shared/SyncButton';
 import { InternalStateView, VectorDisplay } from '../shared/InternalStateView';
+import { SyncModal } from '../shared/SyncModal';
+import { PNCounterStepView } from '../shared/steps';
 
 const REPLICA_COLORS = ['blue', 'green', 'purple'] as const;
 const REPLICA_NAMES = ['A', 'B', 'C'];
@@ -16,6 +18,10 @@ export function PNCounterModule() {
   );
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncedValues, setLastSyncedValues] = useState<number[]>([]);
+
+  // Modal state
+  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [syncSteps, setSyncSteps] = useState<PNCounterSyncStep[]>([]);
 
   const handleIncrement = useCallback((replicaIndex: number) => {
     setReplicas(prev => {
@@ -34,6 +40,13 @@ export function PNCounterModule() {
   }, []);
 
   const handleSync = useCallback(() => {
+    // Generate merge steps for visualization (comparing first two replicas)
+    const steps = PNCounterOps.generateMergeSteps(replicas[0], replicas[1]);
+    setSyncSteps(steps);
+    setShowSyncModal(true);
+  }, [replicas]);
+
+  const handleSyncComplete = useCallback(() => {
     setIsSyncing(true);
     setLastSyncedValues(replicas.map(r => PNCounterOps.getValue(r)));
 
@@ -41,7 +54,7 @@ export function PNCounterModule() {
       const merged = PNCounterOps.mergeAll(replicas);
       setReplicas(Array(NUM_REPLICAS).fill(null).map(() => PNCounterOps.clone(merged)));
       setIsSyncing(false);
-    }, 500);
+    }, 300);
   }, [replicas]);
 
   const handleReset = useCallback(() => {
@@ -97,6 +110,24 @@ export function PNCounterModule() {
       </div>
 
       <SyncButton onSync={handleSync} onReset={handleReset} isSyncing={isSyncing} />
+
+      {/* Sync Modal */}
+      <SyncModal
+        isOpen={showSyncModal}
+        steps={syncSteps}
+        sourceLabel="A"
+        targetLabel="B"
+        onComplete={handleSyncComplete}
+        onClose={() => setShowSyncModal(false)}
+      >
+        {(step) => (
+          <PNCounterStepView
+            step={step as PNCounterSyncStep}
+            sourceLabel="A"
+            targetLabel="B"
+          />
+        )}
+      </SyncModal>
     </div>
   );
 }
@@ -129,7 +160,7 @@ function CounterDisplay({ value, previousValue, isSyncing }: CounterDisplayProps
           animate={{ opacity: 1 }}
           className="text-sm text-yellow-400 mt-1"
         >
-          ← was {previousValue}
+          was {previousValue}
         </motion.div>
       )}
     </div>
@@ -150,7 +181,7 @@ function CounterControls({ onIncrement, onDecrement }: CounterControlsProps) {
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
       >
-        − Decrement
+        - Decrement
       </motion.button>
       <motion.button
         onClick={onIncrement}

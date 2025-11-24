@@ -1,12 +1,14 @@
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import type { DirectedGraph, Position } from '../../types/crdt';
+import type { DirectedGraph, Position, DirectedGraphSyncStep } from '../../types/crdt';
 import * as GraphOps from '../../lib/directed-graph';
 import { ReplicaCard } from '../shared/ReplicaCard';
 import { SyncButton } from '../shared/SyncButton';
 import { GraphCanvas } from './GraphCanvas';
 import { GraphControls } from './GraphControls';
 import { GraphStateView } from './GraphStateView';
+import { SyncModal } from '../shared/SyncModal';
+import { DirectedGraphStepView } from '../shared/steps';
 
 const REPLICA_COLORS = ['blue', 'green', 'purple'] as const;
 const REPLICA_NAMES = ['A', 'B', 'C'];
@@ -21,6 +23,10 @@ export function DirectedGraphModule() {
   );
   const [positions, setPositions] = useState<PositionMap>(new Map());
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // Modal state
+  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [syncSteps, setSyncSteps] = useState<DirectedGraphSyncStep[]>([]);
 
   const getOrCreatePosition = useCallback((name: string): Position => {
     if (positions.has(name)) {
@@ -81,13 +87,20 @@ export function DirectedGraphModule() {
   }, []);
 
   const handleSync = useCallback(() => {
+    // Generate merge steps for visualization (comparing first two replicas)
+    const steps = GraphOps.generateMergeSteps(replicas[0], replicas[1]);
+    setSyncSteps(steps);
+    setShowSyncModal(true);
+  }, [replicas]);
+
+  const handleSyncComplete = useCallback(() => {
     setIsSyncing(true);
 
     setTimeout(() => {
       const merged = GraphOps.mergeAll(replicas);
       setReplicas(Array(NUM_REPLICAS).fill(null).map(() => GraphOps.clone(merged)));
       setIsSyncing(false);
-    }, 500);
+    }, 300);
   }, [replicas]);
 
   const handleReset = useCallback(() => {
@@ -139,6 +152,24 @@ export function DirectedGraphModule() {
       </div>
 
       <SyncButton onSync={handleSync} onReset={handleReset} isSyncing={isSyncing} />
+
+      {/* Sync Modal */}
+      <SyncModal
+        isOpen={showSyncModal}
+        steps={syncSteps}
+        sourceLabel="A"
+        targetLabel="B"
+        onComplete={handleSyncComplete}
+        onClose={() => setShowSyncModal(false)}
+      >
+        {(step) => (
+          <DirectedGraphStepView
+            step={step as DirectedGraphSyncStep}
+            sourceLabel="A"
+            targetLabel="B"
+          />
+        )}
+      </SyncModal>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}

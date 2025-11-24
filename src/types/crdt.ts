@@ -63,3 +63,95 @@ export interface Position {
 export interface VisualVertex extends Vertex {
   position: Position;
 }
+
+// Sync Step Types for Modal Visualization
+export type SyncStepType = 'pn-counter' | 'two-p-set' | 'directed-graph';
+
+export interface SyncStepHighlight {
+  indices?: number[];        // For vector comparisons
+  elements?: string[];       // For set elements
+  uuids?: string[];          // For graph UUIDs
+  status: 'added' | 'removed' | 'winner' | 'unchanged' | 'comparing';
+}
+
+export interface BaseSyncStep {
+  id: string;
+  stepNumber: number;
+  totalSteps: number;
+  title: string;
+  description: string;
+  type: SyncStepType;
+}
+
+// PN-Counter Sync Steps
+export interface PNCounterVectorCompareStep extends BaseSyncStep {
+  type: 'pn-counter';
+  operation: 'compare-p' | 'compare-n';
+  sourceVector: number[];
+  targetVector: number[];
+  resultVector: number[];
+  winnerIndices: number[];  // Which indices had different values (source won or target won)
+}
+
+export interface PNCounterResultStep extends BaseSyncStep {
+  type: 'pn-counter';
+  operation: 'result';
+  mergedP: number[];
+  mergedN: number[];
+  sourceValue: number;
+  targetValue: number;
+  resultValue: number;
+}
+
+export type PNCounterSyncStep = PNCounterVectorCompareStep | PNCounterResultStep;
+
+// 2P-Set Sync Steps
+export interface TwoPSetUnionStep extends BaseSyncStep {
+  type: 'two-p-set';
+  operation: 'union-added' | 'union-removed';
+  sourceSet: string[];
+  targetSet: string[];
+  resultSet: string[];
+  onlyInSource: string[];
+  onlyInTarget: string[];
+  inBoth: string[];
+}
+
+export interface TwoPSetResultStep extends BaseSyncStep {
+  type: 'two-p-set';
+  operation: 'result';
+  mergedAdded: string[];
+  mergedRemoved: string[];
+  sourceVisible: string[];
+  targetVisible: string[];
+  resultVisible: string[];
+  newlyVisible: string[];
+  newlyHidden: string[];
+}
+
+export type TwoPSetSyncStep = TwoPSetUnionStep | TwoPSetResultStep;
+
+// Directed Graph Sync Steps
+export interface GraphUnionStep extends BaseSyncStep {
+  type: 'directed-graph';
+  operation: 'union-vertices' | 'union-vertex-tombstones' | 'union-arcs' | 'union-arc-tombstones';
+  sourceItems: { id: string; label: string }[];
+  targetItems: { id: string; label: string }[];
+  resultItems: { id: string; label: string }[];
+  onlyInSource: string[];
+  onlyInTarget: string[];
+}
+
+export interface GraphResultStep extends BaseSyncStep {
+  type: 'directed-graph';
+  operation: 'result';
+  sourceVisibleVertices: string[];
+  targetVisibleVertices: string[];
+  resultVisibleVertices: string[];
+  addWinsExamples: { name: string; reason: string }[];  // Vertices that survived due to add-wins
+}
+
+export type DirectedGraphSyncStep = GraphUnionStep | GraphResultStep;
+
+// Union type for all sync steps
+export type SyncStep = PNCounterSyncStep | TwoPSetSyncStep | DirectedGraphSyncStep;

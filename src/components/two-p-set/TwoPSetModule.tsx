@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { TwoPSet } from '../../types/crdt';
+import type { TwoPSet, TwoPSetSyncStep } from '../../types/crdt';
 import * as TwoPSetOps from '../../lib/two-p-set';
 import { ReplicaCard } from '../shared/ReplicaCard';
 import { SyncButton } from '../shared/SyncButton';
 import { InternalStateView, SetDisplay } from '../shared/InternalStateView';
+import { SyncModal } from '../shared/SyncModal';
+import { TwoPSetStepView } from '../shared/steps';
 
 const REPLICA_COLORS = ['blue', 'green', 'purple'] as const;
 const REPLICA_NAMES = ['A', 'B', 'C'];
@@ -15,6 +17,10 @@ export function TwoPSetModule() {
     Array(NUM_REPLICAS).fill(null).map(() => TwoPSetOps.createTwoPSet<string>())
   );
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // Modal state
+  const [showSyncModal, setShowSyncModal] = useState(false);
+  const [syncSteps, setSyncSteps] = useState<TwoPSetSyncStep[]>([]);
 
   const handleAdd = useCallback((replicaIndex: number, element: string) => {
     if (!element.trim()) return;
@@ -34,13 +40,20 @@ export function TwoPSetModule() {
   }, []);
 
   const handleSync = useCallback(() => {
+    // Generate merge steps for visualization (comparing first two replicas)
+    const steps = TwoPSetOps.generateMergeSteps(replicas[0], replicas[1]);
+    setSyncSteps(steps);
+    setShowSyncModal(true);
+  }, [replicas]);
+
+  const handleSyncComplete = useCallback(() => {
     setIsSyncing(true);
 
     setTimeout(() => {
       const merged = TwoPSetOps.mergeAll(replicas);
       setReplicas(Array(NUM_REPLICAS).fill(null).map(() => TwoPSetOps.clone(merged)));
       setIsSyncing(false);
-    }, 500);
+    }, 300);
   }, [replicas]);
 
   const handleReset = useCallback(() => {
@@ -93,6 +106,24 @@ export function TwoPSetModule() {
       </div>
 
       <SyncButton onSync={handleSync} onReset={handleReset} isSyncing={isSyncing} />
+
+      {/* Sync Modal */}
+      <SyncModal
+        isOpen={showSyncModal}
+        steps={syncSteps}
+        sourceLabel="A"
+        targetLabel="B"
+        onComplete={handleSyncComplete}
+        onClose={() => setShowSyncModal(false)}
+      >
+        {(step) => (
+          <TwoPSetStepView
+            step={step as TwoPSetSyncStep}
+            sourceLabel="A"
+            targetLabel="B"
+          />
+        )}
+      </SyncModal>
     </div>
   );
 }
@@ -122,7 +153,7 @@ function SetVisualizer({ elements, onRemove }: SetVisualizerProps) {
                 title="Click to remove"
               >
                 {element}
-                <span className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity">×</span>
+                <span className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity">x</span>
               </motion.button>
             ))
           )}
