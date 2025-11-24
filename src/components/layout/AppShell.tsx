@@ -8,6 +8,8 @@ interface AppShellProps {
 }
 
 export function AppShell({ currentModule, onModuleChange, children }: AppShellProps) {
+  const isCmRDT = currentModule === 'directed-graph';
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100">
       <header className="border-b border-slate-700 bg-gradient-to-r from-slate-800 via-slate-800 to-blue-900/30">
@@ -29,8 +31,8 @@ export function AppShell({ currentModule, onModuleChange, children }: AppShellPr
             </div>
             <div className="text-right hidden sm:block">
               <div className="text-xs text-slate-500 uppercase tracking-wider">Implementation Type</div>
-              <div className="text-sm font-medium text-blue-400">
-                CvRDT <span className="text-slate-500">(State-based)</span>
+              <div className={`text-sm font-medium ${isCmRDT ? 'text-purple-400' : 'text-blue-400'}`}>
+                {isCmRDT ? 'CmRDT' : 'CvRDT'} <span className="text-slate-500">({isCmRDT ? 'Op-based' : 'State-based'})</span>
               </div>
             </div>
           </div>
@@ -43,8 +45,17 @@ export function AppShell({ currentModule, onModuleChange, children }: AppShellPr
       <footer className="border-t border-slate-800 py-4 mt-8">
         <div className="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500">
           <p>
-            CvRDTs (Convergent Replicated Data Types) achieve consistency through state-based merge functions.
-            Unlike CmRDTs (Commutative), they transmit full state rather than operations.
+            {isCmRDT ? (
+              <>
+                CmRDTs (Commutative Replicated Data Types) achieve consistency through operation-based delivery.
+                Operations are prepared locally and delivered to other replicas via causal broadcast.
+              </>
+            ) : (
+              <>
+                CvRDTs (Convergent Replicated Data Types) achieve consistency through state-based merge functions.
+                Unlike CmRDTs (Commutative), they transmit full state rather than operations.
+              </>
+            )}
           </p>
         </div>
       </footer>
