@@ -3,11 +3,10 @@ import { ModuleTabs } from './ModuleTabs';
 
 interface AppShellProps {
   currentModule: CRDTModule;
-  onModuleChange: (module: CRDTModule) => void;
   children: React.ReactNode;
 }
 
-export function AppShell({ currentModule, onModuleChange, children }: AppShellProps) {
+export function AppShell({ currentModule, children }: AppShellProps) {
   const isCmRDT = currentModule === 'directed-graph';
 
   return (
@@ -36,7 +35,7 @@ export function AppShell({ currentModule, onModuleChange, children }: AppShellPr
               </div>
             </div>
           </div>
-          <ModuleTabs currentModule={currentModule} onModuleChange={onModuleChange} />
+          <ModuleTabs currentModule={currentModule} />
         </div>
       </header>
       <main className="max-w-7xl mx-auto px-4 py-6">
