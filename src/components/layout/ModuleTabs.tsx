@@ -8,6 +8,7 @@ interface ModuleTabsProps {
 const modules: { id: CRDTModule; label: string; description: string }[] = [
   { id: 'pn-counter', label: 'PN-Counter', description: 'Positive-Negative Counter' },
   { id: 'two-p-set', label: '2P-Set', description: 'Two-Phase Set' },
+  { id: 'add-only-set', label: 'Add-Only Set', description: 'Grow-Only Set (G-Set)' },
   { id: 'directed-graph', label: 'Directed Graph', description: 'Add-Wins Graph' },
 ];
 

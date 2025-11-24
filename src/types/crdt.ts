@@ -16,6 +16,16 @@ export interface TwoPSetSerialized<T = string> {
   removed: T[];
 }
 
+// Add-Only Set Types
+export interface AddOnlySet<T = string> {
+  elements: Set<T>;
+}
+
+// Serializable version for display
+export interface AddOnlySetSerialized<T = string> {
+  elements: T[];
+}
+
 // Directed Graph Types
 export interface Vertex {
   name: string;
@@ -51,7 +61,7 @@ export interface Replica<T> {
 }
 
 // Module type for navigation
-export type CRDTModule = 'pn-counter' | 'two-p-set' | 'directed-graph';
+export type CRDTModule = 'pn-counter' | 'two-p-set' | 'directed-graph' | 'add-only-set';
 
 // Position for graph visualization
 export interface Position {
@@ -65,7 +75,7 @@ export interface VisualVertex extends Vertex {
 }
 
 // Sync Step Types for Modal Visualization
-export type SyncStepType = 'pn-counter' | 'two-p-set' | 'directed-graph';
+export type SyncStepType = 'pn-counter' | 'two-p-set' | 'directed-graph' | 'add-only-set';
 
 export interface SyncStepHighlight {
   indices?: number[];        // For vector comparisons
@@ -131,6 +141,30 @@ export interface TwoPSetResultStep extends BaseSyncStep {
 
 export type TwoPSetSyncStep = TwoPSetUnionStep | TwoPSetResultStep;
 
+// Add-Only Set Sync Steps
+export interface AddOnlySetUnionStep extends BaseSyncStep {
+  type: 'add-only-set';
+  operation: 'union';
+  sourceSet: string[];
+  targetSet: string[];
+  resultSet: string[];
+  onlyInSource: string[];
+  onlyInTarget: string[];
+  inBoth: string[];
+}
+
+export interface AddOnlySetResultStep extends BaseSyncStep {
+  type: 'add-only-set';
+  operation: 'result';
+  mergedSet: string[];
+  sourceElements: string[];
+  targetElements: string[];
+  resultElements: string[];
+  newElements: string[];
+}
+
+export type AddOnlySetSyncStep = AddOnlySetUnionStep | AddOnlySetResultStep;
+
 // Directed Graph Sync Steps
 export interface GraphUnionStep extends BaseSyncStep {
   type: 'directed-graph';
@@ -154,7 +188,7 @@ export interface GraphResultStep extends BaseSyncStep {
 export type DirectedGraphSyncStep = GraphUnionStep | GraphResultStep;
 
 // Union type for all sync steps
-export type SyncStep = PNCounterSyncStep | TwoPSetSyncStep | DirectedGraphSyncStep;
+export type SyncStep = PNCounterSyncStep | TwoPSetSyncStep | DirectedGraphSyncStep | AddOnlySetSyncStep;
 
 // =============================================================================
 // CmRDT (Operation-Based) Directed Graph Types
