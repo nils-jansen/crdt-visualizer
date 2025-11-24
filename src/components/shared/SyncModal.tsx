@@ -1,15 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { SyncStep } from '../../types/crdt';
+import type { SyncStep, CmRDTSyncStep } from '../../types/crdt';
+
+type AnyStep = SyncStep | CmRDTSyncStep;
 
 interface SyncModalProps {
   isOpen: boolean;
-  steps: SyncStep[];
+  steps: AnyStep[];
   sourceLabel: string;
   targetLabel: string;
   onComplete: () => void;
   onClose: () => void;
-  children: (step: SyncStep, stepIndex: number) => React.ReactNode;
+  children: (step: AnyStep, stepIndex: number) => React.ReactNode;
+  applyLabel?: string;
+  title?: string;
 }
 
 export function SyncModal({
@@ -20,6 +24,8 @@ export function SyncModal({
   onComplete,
   onClose,
   children,
+  applyLabel = 'Apply Merge',
+  title = 'Syncing Replicas',
 }: SyncModalProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
@@ -103,7 +109,7 @@ export function SyncModal({
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-white">
-                  Syncing Replicas
+                  {title}
                 </h2>
                 <p className="text-sm text-slate-400">
                   {sourceLabel} → {targetLabel}
@@ -213,7 +219,7 @@ export function SyncModal({
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  Apply Merge
+                  {applyLabel}
                 </motion.button>
               ) : (
                 <motion.button

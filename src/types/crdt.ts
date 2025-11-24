@@ -155,3 +155,112 @@ export type DirectedGraphSyncStep = GraphUnionStep | GraphResultStep;
 
 // Union type for all sync steps
 export type SyncStep = PNCounterSyncStep | TwoPSetSyncStep | DirectedGraphSyncStep;
+
+// =============================================================================
+// CmRDT (Operation-Based) Directed Graph Types
+// =============================================================================
+
+// Operation types for the CmRDT graph
+export type CmRDTOpType = 'AddVertex' | 'RemoveVertex' | 'AddArc' | 'RemoveArc';
+
+// Payload types for different operations
+export interface AddVertexPayload {
+  name: string;
+  tag: string; // Unique UUID generated during prepare phase
+}
+
+export interface RemoveVertexPayload {
+  name: string;
+  observedTags: string[]; // Tags observed at prepare time
+}
+
+export interface AddArcPayload {
+  from: string;
+  to: string;
+  tag: string; // Unique UUID for the arc
+}
+
+export interface RemoveArcPayload {
+  from: string;
+  to: string;
+  observedTags: string[]; // Arc UUIDs observed at prepare time
+}
+
+export type CmRDTOpPayload = AddVertexPayload | RemoveVertexPayload | AddArcPayload | RemoveArcPayload;
+
+// A prepared operation ready for delivery
+export interface PreparedOp {
+  id: string;              // Unique operation ID
+  type: CmRDTOpType;
+  originReplica: string;   // Which replica generated this operation
+  timestamp: number;       // Logical clock for causal ordering
+  payload: CmRDTOpPayload;
+}
+
+// CmRDT Graph state
+export interface CmRDTGraph {
+  V: Map<string, Set<string>>;    // vertex_name -> Set<uuid tags>
+  R: Set<string>;                 // Removal set of observed vertex UUIDs
+  arcs: Map<string, { from: string; to: string }>; // arc_uuid -> {from, to}
+  removedArcs: Set<string>;       // Removal set for arc UUIDs
+  operationQueue: PreparedOp[];   // Pending operations to deliver to other replicas
+  clock: number;                  // Logical clock for this replica
+  replicaId: string;              // Identifier for this replica
+}
+
+// Serializable version for display
+export interface CmRDTGraphSerialized {
+  V: { name: string; tags: string[] }[];
+  R: string[];
+  arcs: { uuid: string; from: string; to: string }[];
+  removedArcs: string[];
+  operationQueue: PreparedOp[];
+  clock: number;
+}
+
+// CmRDT Sync Steps for operation delivery visualization
+export interface CmRDTDeliveryStep extends BaseSyncStep {
+  type: 'directed-graph';
+  operation: 'deliver-op';
+  op: PreparedOp;
+  sourceReplica: string;
+  targetReplica: string;
+  beforeState: {
+    V: { name: string; tags: string[] }[];
+    R: string[];
+  };
+  afterState: {
+    V: { name: string; tags: string[] }[];
+    R: string[];
+  };
+  effectDescription: string;
+}
+
+export interface CmRDTQueueStep extends BaseSyncStep {
+  type: 'directed-graph';
+  operation: 'show-queue';
+  replicaId: string;
+  queue: PreparedOp[];
+}
+
+export interface CmRDTConflictStep extends BaseSyncStep {
+  type: 'directed-graph';
+  operation: 'conflict-resolution';
+  vertexName: string;
+  removedTags: string[];
+  survivingTags: string[];
+  explanation: string;
+}
+
+export interface CmRDTResultStep extends BaseSyncStep {
+  type: 'directed-graph';
+  operation: 'cmrdt-result';
+  replicaStates: {
+    replicaId: string;
+    visibleVertices: string[];
+    visibleArcs: { from: string; to: string }[];
+  }[];
+  conflicts: { vertexName: string; explanation: string }[];
+}
+
+export type CmRDTSyncStep = CmRDTDeliveryStep | CmRDTQueueStep | CmRDTConflictStep | CmRDTResultStep;

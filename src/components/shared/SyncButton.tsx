@@ -4,9 +4,10 @@ interface SyncButtonProps {
   onSync: () => void;
   onReset: () => void;
   isSyncing?: boolean;
+  syncLabel?: string;
 }
 
-export function SyncButton({ onSync, onReset, isSyncing }: SyncButtonProps) {
+export function SyncButton({ onSync, onReset, isSyncing, syncLabel }: SyncButtonProps) {
   return (
     <div className="flex justify-center gap-4 my-6">
       <motion.button
@@ -18,7 +19,7 @@ export function SyncButton({ onSync, onReset, isSyncing }: SyncButtonProps) {
       >
         <span className="flex items-center gap-2">
           <SyncIcon isSyncing={isSyncing} />
-          {isSyncing ? 'Syncing...' : 'Sync All Replicas'}
+          {isSyncing ? 'Syncing...' : (syncLabel || 'Sync All Replicas')}
         </span>
       </motion.button>
       <button

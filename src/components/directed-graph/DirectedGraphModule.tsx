@@ -1,32 +1,35 @@
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import type { DirectedGraph, Position, DirectedGraphSyncStep } from '../../types/crdt';
-import * as GraphOps from '../../lib/directed-graph';
+import type { CmRDTGraph, Position, CmRDTSyncStep } from '../../types/crdt';
+import * as CmRDTOps from '../../lib/cmrdt-directed-graph';
 import { ReplicaCard } from '../shared/ReplicaCard';
 import { SyncButton } from '../shared/SyncButton';
 import { GraphCanvas } from './GraphCanvas';
 import { GraphControls } from './GraphControls';
 import { GraphStateView } from './GraphStateView';
+import { OperationQueue } from './OperationQueue';
 import { SyncModal } from '../shared/SyncModal';
-import { DirectedGraphStepView } from '../shared/steps';
+import { CmRDTGraphStepView } from '../shared/steps';
 
 const REPLICA_COLORS = ['blue', 'green', 'purple'] as const;
 const REPLICA_NAMES = ['A', 'B', 'C'];
-const NUM_REPLICAS = 3;
 
 // Store positions for each vertex name (shared across replicas for consistency)
 type PositionMap = Map<string, Position>;
 
 export function DirectedGraphModule() {
-  const [replicas, setReplicas] = useState<DirectedGraph[]>(() =>
-    Array(NUM_REPLICAS).fill(null).map(() => GraphOps.createDirectedGraph())
+  const [replicas, setReplicas] = useState<CmRDTGraph[]>(() =>
+    REPLICA_NAMES.map(name => CmRDTOps.createCmRDTGraph(name))
   );
   const [positions, setPositions] = useState<PositionMap>(new Map());
   const [isSyncing, setIsSyncing] = useState(false);
 
   // Modal state
   const [showSyncModal, setShowSyncModal] = useState(false);
-  const [syncSteps, setSyncSteps] = useState<DirectedGraphSyncStep[]>([]);
+  const [syncSteps, setSyncSteps] = useState<CmRDTSyncStep[]>([]);
+
+  // Count total pending operations across all replicas
+  const totalPendingOps = replicas.reduce((sum, r) => sum + r.operationQueue.length, 0);
 
   const getOrCreatePosition = useCallback((name: string): Position => {
     if (positions.has(name)) {
@@ -54,7 +57,7 @@ export function DirectedGraphModule() {
 
     setReplicas(prev => {
       const newReplicas = [...prev];
-      newReplicas[replicaIndex] = GraphOps.addVertex(prev[replicaIndex], trimmedName);
+      newReplicas[replicaIndex] = CmRDTOps.addVertex(prev[replicaIndex], trimmedName);
       return newReplicas;
     });
   }, [getOrCreatePosition]);
@@ -62,7 +65,10 @@ export function DirectedGraphModule() {
   const handleRemoveVertex = useCallback((replicaIndex: number, name: string) => {
     setReplicas(prev => {
       const newReplicas = [...prev];
-      newReplicas[replicaIndex] = GraphOps.removeVertex(prev[replicaIndex], name);
+      const result = CmRDTOps.removeVertex(prev[replicaIndex], name);
+      if (result) {
+        newReplicas[replicaIndex] = result;
+      }
       return newReplicas;
     });
   }, []);
@@ -70,7 +76,7 @@ export function DirectedGraphModule() {
   const handleAddArc = useCallback((replicaIndex: number, from: string, to: string) => {
     setReplicas(prev => {
       const newReplicas = [...prev];
-      const result = GraphOps.addArc(prev[replicaIndex], from, to);
+      const result = CmRDTOps.addArc(prev[replicaIndex], from, to);
       if (result) {
         newReplicas[replicaIndex] = result;
       }
@@ -81,14 +87,17 @@ export function DirectedGraphModule() {
   const handleRemoveArc = useCallback((replicaIndex: number, from: string, to: string) => {
     setReplicas(prev => {
       const newReplicas = [...prev];
-      newReplicas[replicaIndex] = GraphOps.removeArc(prev[replicaIndex], from, to);
+      const result = CmRDTOps.removeArc(prev[replicaIndex], from, to);
+      if (result) {
+        newReplicas[replicaIndex] = result;
+      }
       return newReplicas;
     });
   }, []);
 
   const handleSync = useCallback(() => {
-    // Generate merge steps for visualization (comparing first two replicas)
-    const steps = GraphOps.generateMergeSteps(replicas[0], replicas[1]);
+    // Generate delivery steps for visualization
+    const steps = CmRDTOps.generateDeliverySteps(replicas);
     setSyncSteps(steps);
     setShowSyncModal(true);
   }, [replicas]);
@@ -97,14 +106,14 @@ export function DirectedGraphModule() {
     setIsSyncing(true);
 
     setTimeout(() => {
-      const merged = GraphOps.mergeAll(replicas);
-      setReplicas(Array(NUM_REPLICAS).fill(null).map(() => GraphOps.clone(merged)));
+      const { updatedReplicas } = CmRDTOps.syncAllReplicas(replicas);
+      setReplicas(updatedReplicas);
       setIsSyncing(false);
     }, 300);
   }, [replicas]);
 
   const handleReset = useCallback(() => {
-    setReplicas(Array(NUM_REPLICAS).fill(null).map(() => GraphOps.createDirectedGraph()));
+    setReplicas(REPLICA_NAMES.map(name => CmRDTOps.createCmRDTGraph(name)));
     setPositions(new Map());
   }, []);
 
@@ -113,24 +122,37 @@ export function DirectedGraphModule() {
       <div className="mb-6 p-4 bg-slate-800 rounded-lg border-l-4 border-purple-500">
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-white mb-1">Directed Graph (Add-Wins Semantics)</h2>
+            <h2 className="text-lg font-semibold text-white mb-1">Directed Graph (Op-Based / CmRDT)</h2>
             <span className="inline-block px-2 py-0.5 bg-purple-900/50 text-purple-300 text-xs rounded-full mb-2">
-              CvRDT - OR-Set Variant with UUID Tagging
+              CmRDT - Operation Log with Causal Delivery
             </span>
           </div>
+          {totalPendingOps > 0 && (
+            <span className="px-3 py-1 bg-amber-900/50 text-amber-400 text-sm rounded-full animate-pulse">
+              {totalPendingOps} op{totalPendingOps !== 1 ? 's' : ''} pending
+            </span>
+          )}
         </div>
         <p className="text-slate-400 text-sm">
-          Vertices and arcs are stored with unique UUIDs, similar to an <span className="text-purple-400">OR-Set</span> (Observed-Remove Set).
-          When removing, only the <em>observed</em> UUIDs are tombstoned.
-          The <span className="text-purple-400">merge function</span> unions all UUIDs and tombstones, enabling
-          add-wins: concurrent additions create new UUIDs that survive concurrent removals.
+          Unlike state-based CRDTs, this <span className="text-purple-400">CmRDT</span> uses an operation-log approach.
+          Each operation has a <span className="text-purple-400">prepare</span> phase (generating unique tags) and an
+          <span className="text-purple-400"> effect</span> phase (applying to state).
+          Operations are queued locally and <span className="text-purple-400">delivered</span> to other replicas on sync.
         </p>
+        <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-500">
+          <div>
+            <span className="text-green-400">AddVertex:</span> prepare generates unique tag, effect adds (name, tag) to V
+          </div>
+          <div>
+            <span className="text-red-400">RemoveVertex:</span> prepare collects observed tags, effect adds to R
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {replicas.map((replica, index) => {
-          const visibleVertices = GraphOps.getVisibleVertices(replica);
-          const visibleArcs = GraphOps.getVisibleArcs(replica);
+          const visibleVertices = CmRDTOps.getVisibleVertices(replica);
+          const visibleArcs = CmRDTOps.getVisibleArcs(replica);
 
           return (
             <ReplicaCard
@@ -140,8 +162,8 @@ export function DirectedGraphModule() {
               isSyncing={isSyncing}
             >
               <GraphCanvas
-                vertices={visibleVertices}
-                arcs={visibleArcs}
+                vertices={visibleVertices.map(name => ({ name, uuid: name }))}
+                arcs={visibleArcs.map(a => ({ from: a.from, to: a.to, uuid: a.uuid }))}
                 positions={positions}
                 onPositionChange={updatePosition}
                 onRemoveVertex={(name) => handleRemoveVertex(index, name)}
@@ -149,9 +171,12 @@ export function DirectedGraphModule() {
                 getOrCreatePosition={getOrCreatePosition}
               />
               <GraphControls
-                vertices={visibleVertices}
+                vertices={visibleVertices.map(name => ({ name, uuid: name }))}
                 onAddVertex={(name) => handleAddVertex(index, name)}
                 onAddArc={(from, to) => handleAddArc(index, from, to)}
+              />
+              <OperationQueue
+                operations={replica.operationQueue}
               />
               <GraphStateView graph={replica} />
             </ReplicaCard>
@@ -159,23 +184,26 @@ export function DirectedGraphModule() {
         })}
       </div>
 
-      <SyncButton onSync={handleSync} onReset={handleReset} isSyncing={isSyncing} />
+      <SyncButton
+        onSync={handleSync}
+        onReset={handleReset}
+        isSyncing={isSyncing}
+        syncLabel={totalPendingOps > 0 ? `Deliver Operations (${totalPendingOps})` : 'Sync All Replicas'}
+      />
 
       {/* Sync Modal */}
       <SyncModal
         isOpen={showSyncModal}
         steps={syncSteps}
-        sourceLabel="A"
-        targetLabel="B"
+        sourceLabel="All"
+        targetLabel="All"
         onComplete={handleSyncComplete}
         onClose={() => setShowSyncModal(false)}
+        title="Operation Delivery (CmRDT)"
+        applyLabel="Complete Sync"
       >
         {(step) => (
-          <DirectedGraphStepView
-            step={step as DirectedGraphSyncStep}
-            sourceLabel="A"
-            targetLabel="B"
-          />
+          <CmRDTGraphStepView step={step as CmRDTSyncStep} />
         )}
       </SyncModal>
 
@@ -186,14 +214,14 @@ export function DirectedGraphModule() {
       >
         <h3 className="text-amber-400 font-semibold mb-2">Try This Conflict Scenario:</h3>
         <ol className="text-slate-300 text-sm space-y-1 list-decimal list-inside">
-          <li>Add vertex "X" on Replica A</li>
-          <li>Sync all replicas (so all have "X")</li>
-          <li>On Replica A: Remove vertex "X"</li>
-          <li>On Replica B (without syncing): Add vertex "X" again</li>
-          <li>Sync all replicas - observe that "X" remains visible!</li>
+          <li>Add vertex "X" on Replica A (notice it queues an AddVertex operation)</li>
+          <li>Sync all replicas to deliver the operation</li>
+          <li>On Replica A: Remove vertex "X" (queues RemoveVertex with observed tags)</li>
+          <li>On Replica B (without syncing): Add vertex "X" again (generates a NEW tag)</li>
+          <li>Sync all - observe that "X" survives because B's new tag wasn't in A's observed set!</li>
         </ol>
         <p className="text-slate-400 text-xs mt-2">
-          This demonstrates add-wins: B's concurrent addition created a new UUID that wasn't in A's removal set.
+          This demonstrates the CmRDT add-wins semantic: RemoveVertex only removes UUIDs observed at prepare time.
         </p>
       </motion.div>
     </div>
