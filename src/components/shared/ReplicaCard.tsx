@@ -2,19 +2,19 @@ import { motion } from 'framer-motion';
 
 interface ReplicaCardProps {
   name: string;
-  color: 'blue' | 'green' | 'purple';
+  color: 'amber' | 'green' | 'purple';
   children: React.ReactNode;
   isSyncing?: boolean;
 }
 
 const colorClasses = {
-  blue: 'border-blue-500 bg-blue-500/10',
+  amber: 'border-amber-500 bg-amber-500/10',
   green: 'border-green-500 bg-green-500/10',
   purple: 'border-purple-500 bg-purple-500/10',
 };
 
 const headerColors = {
-  blue: 'bg-blue-500',
+  amber: 'bg-amber-500',
   green: 'bg-green-500',
   purple: 'bg-purple-500',
 };

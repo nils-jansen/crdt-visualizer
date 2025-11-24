@@ -11,7 +11,7 @@ import { OperationQueue } from './OperationQueue';
 import { SyncModal } from '../shared/SyncModal';
 import { CmRDTGraphStepView } from '../shared/steps';
 
-const REPLICA_COLORS = ['blue', 'green', 'purple'] as const;
+const REPLICA_COLORS = ['amber', 'green', 'purple'] as const;
 const REPLICA_NAMES = ['A', 'B', 'C'];
 
 // Store positions for each vertex name (shared across replicas for consistency)

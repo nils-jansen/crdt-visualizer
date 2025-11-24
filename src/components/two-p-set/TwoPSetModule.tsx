@@ -8,7 +8,7 @@ import { InternalStateView, SetDisplay } from '../shared/InternalStateView';
 import { SyncModal } from '../shared/SyncModal';
 import { TwoPSetStepView } from '../shared/steps';
 
-const REPLICA_COLORS = ['blue', 'green', 'purple'] as const;
+const REPLICA_COLORS = ['amber', 'green', 'purple'] as const;
 const REPLICA_NAMES = ['A', 'B', 'C'];
 const NUM_REPLICAS = 3;
 
